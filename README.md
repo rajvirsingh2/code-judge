@@ -94,12 +94,12 @@ flowchart TD
 
 | Layer | Technology |
 |---|---|
-| Frontend | React (JSX), React Router, Context API
+| Frontend | React (JSX), React Router, Context API <!-- TODO: confirm Vite / Tailwind etc. --> |
 | Backend API | Node.js, Express |
 | Compiler service | Node.js, Express, `child_process` for compiling and running code |
 | Database | MongoDB (Mongoose models: `user.js`, `problem.js`, `submission.js`) |
 | AI | Google Gemini API |
-| Auth | Token-based auth middleware (`auth.js`)
+| Auth | Token-based auth middleware (`auth.js`) <!-- TODO: confirm JWT / cookies --> |
 | CI/CD | GitHub Actions (`.github/workflows`) |
 
 ---
@@ -139,6 +139,7 @@ code-judge/
     ├── executeCode.js
     └── server.js
 ```
+<!-- TODO: adjust folder names (e.g. middleware/, models/, services/, api/) to match the repo exactly -->
 
 ---
 
@@ -160,7 +161,7 @@ cd code-judge
 
 ### 2. Configure environment variables
 
-Create a `.env` file in each service.
+Create a `.env` file in each service. <!-- TODO: match variable names used in the code -->
 
 **`backend/.env`**
 ```env
@@ -231,11 +232,13 @@ All routes are mounted in `backend/server.js`. 🔒 marks routes protected by th
 | `POST /run` | Run code against custom input and return the output |
 | `POST /submit` | Judge code against the problem's hidden tests and report the verdict to the API |
 
+<!-- TODO: verify exact paths and HTTP methods -->
 
 ---
 
 ## 🧪 Supported Languages
 
+<!-- TODO: update to match executeCode.js -->
 | Language | Toolchain |
 |---|---|
 | C++ | `g++` |
@@ -274,6 +277,13 @@ Contributions are welcome!
 3. Commit your changes: `git commit -m "Add my feature"`
 4. Push the branch: `git push origin feature/my-feature`
 5. Open a Pull Request.
+
+---
+
+## 📄 License
+
+<!-- TODO: add a LICENSE file and update this section -->
+This project is licensed under the MIT License.
 
 ---
 
