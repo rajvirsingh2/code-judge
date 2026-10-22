@@ -1,0 +1,132 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - 'onlinecompiler/**'
+      - '.github/**'
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ap-south-1
+  # ✅ NEW: Single CloudFront domain for all API calls
+  CLOUDFRONT_DOMAIN: ${{ secrets.CLOUDFRONT_DOMAIN }}
+
+jobs:
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Build Frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          # ✅ FIXED: Pass CloudFront domain, NOT API Gateway URLs
+          export VITE_CLOUDFRONT_DOMAIN=https://${{ secrets.CLOUDFRONT_DOMAIN }}
+          export VITE_BACKEND_URL=https://${{ secrets.CLOUDFRONT_DOMAIN }}
+          export VITE_BACKEND_URL2=https://${{ secrets.CLOUDFRONT_DOMAIN }}
+          npm run build
+
+      - name: Deploy Frontend to S3
+        run: |
+          aws s3 sync frontend/dist/ s3://code-judge-frontend-raghav-2026/ --delete
+
+      - name: Invalidate CloudFront Cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_ID }} \
+            --paths "/*"
+
+  deploy-backend:
+    name: Deploy Backend Lambda
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install Backend Dependencies
+        working-directory: backend
+        run: npm install --production
+
+      - name: Zip Backend Lambda
+        run: |
+          cd backend
+          zip -r ../backend-api.zip . -x "*.git*" -x "*node_modules/.cache*"
+
+      - name: Deploy Backend Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name code-judge-backend \
+            --zip-file fileb://backend-api.zip \
+            --region ${{ env.AWS_REGION }}
+
+  deploy-compiler:
+    name: Deploy Compiler Lambda
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install Compiler Dependencies
+        working-directory: onlinecompiler
+        run: npm install --production
+
+      - name: Zip Compiler Lambda
+        run: |
+          cd onlinecompiler
+          zip -r ../compiler-api.zip . -x "*.git*" -x "*node_modules/.cache*"
+
+      - name: Deploy Compiler Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name code-judge-compiler \
+            --zip-file fileb://compiler-api.zip \
+            --region ${{ env.AWS_REGION }}
